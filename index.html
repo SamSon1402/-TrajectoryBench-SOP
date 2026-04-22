@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrajectoryBench-SOP | Gradient Labs Demo</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --border: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #6366f1;
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --err: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+  }
+  h1 .tag {
+    font-size: 11px;
+    background: var(--accent);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--muted); }
+  select, textarea, button {
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    width: 100%;
+  }
+  textarea {
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    font-size: 12px;
+    min-height: 180px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  button {
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  button.primary:hover { background: #4f46e5; }
+  button.ghost { background: transparent; }
+  button.ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .row button { flex: 1; }
+  .sop-step {
+    padding: 8px 10px;
+    border-left: 3px solid var(--border);
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .sop-step.hit { border-color: var(--ok); background: rgba(16,185,129,0.08); }
+  .sop-step.missed { border-color: var(--err); background: rgba(239,68,68,0.08); }
+  .sop-step.out-of-order { border-color: var(--warn); background: rgba(245,158,11,0.08); }
+  .sop-step .num { color: var(--muted); margin-right: 8px; font-variant-numeric: tabular-nums; }
+  .sop-step .triggers { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: "JetBrains Mono", monospace; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .metric {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  .metric .val {
+    font-size: 22px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .metric .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+  .metric.ok .val { color: var(--ok); }
+  .metric.warn .val { color: var(--warn); }
+  .metric.err .val { color: var(--err); }
+  .violations {
+    margin-top: 12px;
+  }
+  .violation {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .violation .type { color: var(--err); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .violation .desc { margin-top: 4px; }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 20px;
+    font-size: 13px;
+  }
+  .turn {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    border-left: 3px solid var(--border);
+  }
+  .turn.agent { background: rgba(99,102,241,0.06); border-color: var(--accent); }
+  .turn.matched { border-color: var(--ok); background: rgba(16,185,129,0.05); }
+  .turn .role { color: var(--muted); font-weight: 600; margin-right: 8px; }
+  .turn .match-tag { display: inline-block; background: var(--ok); color: white; font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 6px; }
+  code { font-family: "JetBrains Mono", monospace; background: var(--bg); padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TrajectoryBench-SOP <span class="tag">Gradient Labs Demo</span></h1>
+  <div class="sub">Evaluate whether an AI agent followed the correct Standard Operating Procedure trajectory — the same evaluation methodology Gradient Labs uses to hit 97% trajectory accuracy.</div>
+</header>
+
+<div class="layout">
+
+  <div class="panel">
+    <h2>1. Select SOP</h2>
+    <select id="sopSelect" onchange="renderSOP()">
+      <option value="dispute">Payment Dispute Resolution</option>
+      <option value="kyc">KYC Re-verification</option>
+      <option value="complaint">Complaint Handling (FCA)</option>
+    </select>
+    <div id="sopSteps" style="margin-top: 14px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>2. Conversation Transcript</h2>
+    <div class="row">
+      <button class="ghost" onclick="loadSample('good')">Load passing sample</button>
+      <button class="ghost" onclick="loadSample('bad')">Load failing sample</button>
+    </div>
+    <textarea id="convo" placeholder="Paste conversation transcript. Format:&#10;Customer: hello&#10;Agent: hi, how can I help?"></textarea>
+    <div style="margin-top: 12px;">
+      <button class="primary" onclick="evaluate()">▶ Evaluate Trajectory</button>
+    </div>
+
+    <div id="results" style="margin-top: 20px;">
+      <div class="empty">Run an evaluation to see trajectory analysis</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// SOP DEFINITIONS
+// Each step has required trigger phrases/patterns.
+// Order matters: step N should precede step N+1.
+// ============================================================
+const SOPS = {
+  dispute: {
+    name: "Payment Dispute Resolution",
+    steps: [
+      { id: 1, title: "Acknowledge & empathize", triggers: ["sorry to hear", "i understand", "that sounds", "i can imagine", "apologies"] },
+      { id: 2, title: "Request dispute details", triggers: ["amount", "when did", "which merchant", "transaction date", "how much", "date of"] },
+      { id: 3, title: "Verify customer identity", triggers: ["security question", "date of birth", "verify", "confirm your identity", "last four"] },
+      { id: 4, title: "Classify dispute type", triggers: ["fraud", "merchant", "duplicate", "not recognized", "unauthorized", "goods not received"] },
+      { id: 5, title: "Provide reference number", triggers: ["reference", "case number", "ticket id", "dispute id", "ref #"] },
+      { id: 6, title: "Explain timeline & next steps", triggers: ["business days", "within 10", "you'll hear", "we'll investigate", "next steps", "update you"] },
+      { id: 7, title: "Offer interim protection", triggers: ["freeze your card", "block the card", "temporary", "in the meantime", "replacement card"] }
+    ]
+  },
+  kyc: {
+    name: "KYC Re-verification",
+    steps: [
+      { id: 1, title: "Explain why verification needed", triggers: ["regulatory", "compliance", "required by law", "we're required", "to keep your account"] },
+      { id: 2, title: "Request identity document", triggers: ["passport", "driving licence", "driver's license", "id document", "photo id", "national id"] },
+      { id: 3, title: "Request proof of address", triggers: ["proof of address", "utility bill", "bank statement", "council tax", "address verification"] },
+      { id: 4, title: "Confirm document recency", triggers: ["within 3 months", "last three months", "recent", "dated within", "issued within"] },
+      { id: 5, title: "Explain upload method", triggers: ["upload", "in the app", "via the link", "secure link", "attach"] },
+      { id: 6, title: "Set expectations on review", triggers: ["24 hours", "48 hours", "reviewed within", "we'll confirm", "processing time"] }
+    ]
+  },
+  complaint: {
+    name: "Complaint Handling (FCA)",
+    steps: [
+      { id: 1, title: "Acknowledge complaint genuinely", triggers: ["sorry to hear", "i understand", "appreciate you", "thank you for raising", "i apologise"] },
+      { id: 2, title: "Gather specific details", triggers: ["what happened", "when did this", "can you tell me more", "which product", "how were you affected"] },
+      { id: 3, title: "Log as formal complaint", triggers: ["logged as", "formal complaint", "raise this as", "escalate this", "record this"] },
+      { id: 4, title: "Provide complaint reference", triggers: ["reference", "case number", "complaint id", "ref "] },
+      { id: 5, title: "Explain 8-week timeline", triggers: ["8 weeks", "eight weeks", "within 8", "final response", "resolution within"] },
+      { id: 6, title: "Mention FOS rights", triggers: ["financial ombudsman", "fos", "ombudsman service", "escalate externally", "right to refer"] },
+      { id: 7, title: "Offer goodwill / next contact", triggers: ["follow up", "come back to you", "we'll be in touch", "update you", "keep you informed"] }
+    ]
+  }
+};
+
+// ============================================================
+// SAMPLE CONVERSATIONS
+// ============================================================
+const SAMPLES = {
+  dispute: {
+    good: `Customer: Hi, there's a £340 charge on my card I don't recognise from yesterday.
+Agent: I'm really sorry to hear that, that must be concerning. Let me help you sort this out right away.
+Agent: Can you tell me the exact amount, the merchant name shown, and the date of the transaction?
+Customer: £340.00, merchant shows "GLOBAL RETAIL LTD", date was 14 April.
+Agent: Thank you. For security, could you confirm your date of birth and the last four digits of your card?
+Customer: 12/05/1990, last four 4421.
+Agent: Perfect, identity verified. Based on what you've described, I'm going to classify this as an unauthorised transaction / potential fraud.
+Agent: I've opened dispute reference DSP-2026-88412. You'll receive email confirmation shortly.
+Agent: We'll investigate and get back to you within 10 business days. A provisional credit may appear within 2 days.
+Agent: In the meantime, I'd strongly recommend we freeze your current card and issue a replacement — shall I do that now?`,
+    bad: `Customer: Hi, there's a £340 charge I don't recognise.
+Agent: Okay, can you tell me the amount and merchant?
+Customer: £340, GLOBAL RETAIL LTD, 14 April.
+Agent: Got it. I'll look into it.
+Agent: It seems like it could be fraud.
+Agent: We'll investigate.
+Customer: How long will this take? Should I be worried?
+Agent: It takes some time. Bye.`
+  },
+  kyc: {
+    good: `Customer: Why am I being asked to re-verify my account?
+Agent: Great question. This is a regulatory requirement — we're required to periodically refresh customer identity information to stay compliant with UK AML rules.
+Agent: Could you please provide a photo of a valid passport or UK driving licence?
+Customer: Sure, I can send my passport.
+Agent: Perfect. We'll also need a proof of address — a utility bill or bank statement dated within the last 3 months works.
+Customer: Okay.
+Agent: You can upload both documents securely via the link I've just sent in the app.
+Agent: Once submitted, our team will review within 48 hours and I'll confirm back to you here.`,
+    bad: `Customer: Why am I being asked to verify my account?
+Agent: You just need to send your ID.
+Customer: What kind of ID?
+Agent: Any ID is fine.
+Agent: Send it to my email.`
+  },
+  complaint: {
+    good: `Customer: I'm really unhappy — my payment was blocked for 5 days with no explanation and I missed a rent deadline.
+Agent: I'm truly sorry to hear this, that sounds incredibly stressful and I appreciate you raising it with me.
+Agent: Could you tell me more about what happened — when the payment was attempted, the amount, and how this affected you?
+Customer: £1,200 rent on 1 April, blocked until 6 April. Landlord charged late fees.
+Agent: Thank you for the detail. I'm going to raise this as a formal complaint right now.
+Agent: Your complaint reference is CMP-2026-0042 — please keep this safe.
+Agent: Under FCA rules we'll provide a final response within 8 weeks, though we aim to resolve much sooner.
+Agent: If you're not satisfied with our final response, you have the right to refer the complaint to the Financial Ombudsman Service free of charge.
+Agent: I'll personally follow up and come back to you with an update within 3 working days.`,
+    bad: `Customer: My payment was blocked for 5 days, I missed rent.
+Agent: Sorry about that.
+Agent: I'll pass this to the team.
+Customer: What's the next step?
+Agent: Someone will get back to you.`
+  }
+};
+
+// ============================================================
+// RENDERING
+// ============================================================
+function renderSOP() {
+  const key = document.getElementById('sopSelect').value;
+  const sop = SOPS[key];
+  const container = document.getElementById('sopSteps');
+  container.innerHTML = sop.steps.map(s => `
+    <div class="sop-step" id="step-${s.id}">
+      <div><span class="num">${s.id}.</span>${s.title}</div>
+      <div class="triggers">triggers: ${s.triggers.slice(0,3).map(t => '"'+t+'"').join(', ')}${s.triggers.length>3?'...':''}</div>
+    </div>
+  `).join('');
+}
+
+function loadSample(type) {
+  const key = document.getElementById('sopSelect').value;
+  document.getElementById('convo').value = SAMPLES[key][type];
+}
+
+// ============================================================
+// EVALUATION ALGORITHM
+// ============================================================
+function evaluate() {
+  const key = document.getElementById('sopSelect').value;
+  const sop = SOPS[key];
+  const text = document.getElementById('convo').value.trim();
+
+  if (!text) {
+    document.getElementById('results').innerHTML = '<div class="empty">Paste a transcript or load a sample first</div>';
+    return;
+  }
+
+  // Parse turns
+  const turns = text.split('\n').filter(l => l.trim()).map(line => {
+    const m = line.match(/^(Agent|Customer):\s*(.*)$/i);
+    if (m) return { role: m[1].toLowerCase(), text: m[2] };
+    return { role: 'unknown', text: line };
+  });
+
+  // Match each agent turn against SOP steps
+  const agentTurns = turns.filter(t => t.role === 'agent');
+  const stepMatches = sop.steps.map(s => ({ step: s, turnIndices: [] }));
+  const turnAnnotations = agentTurns.map(() => []);
+
+  agentTurns.forEach((turn, tIdx) => {
+    const lower = turn.text.toLowerCase();
+    sop.steps.forEach((step, sIdx) => {
+      for (const trig of step.triggers) {
+        if (lower.includes(trig.toLowerCase())) {
+          stepMatches[sIdx].turnIndices.push(tIdx);
+          turnAnnotations[tIdx].push(step.id);
+          break;
+        }
+      }
+    });
+  });
+
+  // Compute coverage
+  const hitSteps = stepMatches.filter(s => s.turnIndices.length > 0);
+  const missedSteps = stepMatches.filter(s => s.turnIndices.length === 0);
+  const coverage = (hitSteps.length / sop.steps.length) * 100;
+
+  // Compute order correctness
+  const firstHitOrder = stepMatches
+    .filter(s => s.turnIndices.length > 0)
+    .map(s => ({ id: s.step.id, firstTurn: s.turnIndices[0] }));
+
+  let outOfOrder = [];
+  for (let i = 1; i < firstHitOrder.length; i++) {
+    if (firstHitOrder[i].firstTurn < firstHitOrder[i-1].firstTurn) {
+      outOfOrder.push(firstHitOrder[i].id);
+    }
+  }
+  const orderScore = firstHitOrder.length > 1
+    ? ((firstHitOrder.length - outOfOrder.length) / firstHitOrder.length) * 100
+    : 100;
+
+  // Trajectory score (weighted)
+  const trajectoryScore = (coverage * 0.7 + orderScore * 0.3);
+
+  // Build violations list
+  const violations = [];
+  missedSteps.forEach(s => {
+    violations.push({
+      type: 'Missed step',
+      desc: `Step ${s.step.id}: "${s.step.title}" — no agent turn contained expected triggers.`
+    });
+  });
+  outOfOrder.forEach(id => {
+    const step = sop.steps.find(s => s.id === id);
+    violations.push({
+      type: 'Out of order',
+      desc: `Step ${id}: "${step.title}" was executed before a prerequisite step.`
+    });
+  });
+
+  // Update SOP panel visualization
+  document.querySelectorAll('.sop-step').forEach(el => {
+    el.classList.remove('hit', 'missed', 'out-of-order');
+  });
+  hitSteps.forEach(s => {
+    document.getElementById('step-' + s.step.id).classList.add('hit');
+  });
+  missedSteps.forEach(s => {
+    document.getElementById('step-' + s.step.id).classList.add('missed');
+  });
+  outOfOrder.forEach(id => {
+    document.getElementById('step-' + id).classList.add('out-of-order');
+  });
+
+  // Render results
+  const metricClass = (v) => v >= 85 ? 'ok' : v >= 60 ? 'warn' : 'err';
+
+  let html = `
+    <div class="metrics">
+      <div class="metric ${metricClass(trajectoryScore)}">
+        <div class="val">${trajectoryScore.toFixed(1)}%</div>
+        <div class="label">Trajectory Score</div>
+      </div>
+      <div class="metric ${metricClass(coverage)}">
+        <div class="val">${hitSteps.length}/${sop.steps.length}</div>
+        <div class="label">Step Coverage</div>
+      </div>
+      <div class="metric ${metricClass(orderScore)}">
+        <div class="val">${orderScore.toFixed(0)}%</div>
+        <div class="label">Order Correctness</div>
+      </div>
+    </div>
+  `;
+
+  html += '<h2 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Agent turns (matched steps highlighted)</h2>';
+  agentTurns.forEach((turn, idx) => {
+    const matched = turnAnnotations[idx];
+    const cls = matched.length > 0 ? 'turn agent matched' : 'turn agent';
+    const tags = matched.map(id => `<span class="match-tag">step ${id}</span>`).join('');
+    html += `<div class="${cls}"><span class="role">Agent:</span>${escapeHtml(turn.text)}${tags}</div>`;
+  });
+
+  if (violations.length > 0) {
+    html += '<div class="violations"><h2 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 10px;">Violations</h2>';
+    violations.forEach(v => {
+      html += `<div class="violation"><div class="type">${v.type}</div><div class="desc">${escapeHtml(v.desc)}</div></div>`;
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:6px;color:var(--ok);font-size:13px;">✓ No trajectory violations detected — agent followed SOP correctly.</div>';
+  }
+
+  document.getElementById('results').innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Init
+renderSOP();
+</script>
+</body>
+</html>
